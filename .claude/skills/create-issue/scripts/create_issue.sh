@@ -21,12 +21,15 @@ SIZE_FIELD_ID="PVTSSF_lAHOAcJc1M4BjV1OzhiKfyQ"
 
 usage() {
   cat <<'EOF'
-Usage: create_issue.sh --title "<title>" --body-file <path> --priority P0|P1|P2 --size XS|S|M|L|XL
+Usage: create_issue.sh --title "<title>" --body-file <path> --priority P0|P1|P2 --size XS|S|M|L|XL [--parent <issue-number>]
 
   --title       Issue title (required)
   --body-file   Path to a file containing the issue body markdown (required)
   --priority    P0, P1, or P2 (required)
   --size        XS, S, M, L, or XL (required)
+  --parent      Existing issue number to link this issue under as a
+                GitHub sub-issue (optional). Use when a large feature has
+                been split into a parent (epic) issue plus child issues.
 
 Status is always set to "Backlog" on creation.
 EOF
@@ -36,6 +39,7 @@ TITLE=""
 BODY_FILE=""
 PRIORITY=""
 SIZE=""
+PARENT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --body-file) BODY_FILE="$2"; shift 2 ;;
     --priority) PRIORITY="$2"; shift 2 ;;
     --size) SIZE="$2"; shift 2 ;;
+    --parent) PARENT="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
   esac
@@ -91,4 +96,14 @@ gh project item-edit --id "$ITEM_ID" --project-id "$PROJECT_ID" \
   --field-id "$SIZE_FIELD_ID" --single-select-option-id "$SIZE_OPTION_ID" >/dev/null
 
 echo "Status=Backlog, Priority=$PRIORITY, Size=$SIZE set." >&2
+
+if [[ -n "$PARENT" ]]; then
+  echo "Linking as sub-issue of #$PARENT..." >&2
+  PARENT_NODE_ID=$(gh issue view "$PARENT" --repo "$REPO" --json id --jq '.id')
+  gh api graphql \
+    -f query='mutation($issueId:ID!, $subIssueUrl:String!) { addSubIssue(input: {issueId: $issueId, subIssueUrl: $subIssueUrl}) { subIssue { number } } }' \
+    -f issueId="$PARENT_NODE_ID" -f subIssueUrl="$ISSUE_URL" >/dev/null
+  echo "Linked under parent #$PARENT." >&2
+fi
+
 echo "$ISSUE_URL"

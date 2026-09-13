@@ -36,6 +36,22 @@ kozy0810/aituberリポジトリでは、インテント駆動開発の実行単�
 
 会話の文脈から自分で妥当な値を判断する。判断がつかない場合のみ聞く。
 
+## 親Issue・子Issueへの分割
+
+複数のIssueに分けた方がよい規模の大きい機能実装(目安: Size=XL相当、あるいは明らかに複数の独立した作業に分かれる)の場合は、親Issue(全体像)を1つ作り、その下に子Issueを紐づけて作成する。分割するかどうかは都度自分で判断してよい(必ずユーザーに確認を取る必要はない)。
+
+- 親Issueも同じ「実装内容/完了条件」フォーマットで作る。実装内容には全体のスコープを書き、完了条件は「全ての子Issueの完了条件を満たすこと」のように書けばよい
+- 親を先に作成し、子Issueは作成時に `--parent <親のIssue番号>` を渡してGitHubのSub-issueとして紐付ける
+- 子Issueは親と同様、実装可能な粒度まで具体化した「実装内容/完了条件」を持つ独立したIssueにする
+
+```bash
+# 親Issue作成
+scripts/create_issue.sh --title "<親タイトル>" --body-file <親の本文> --priority P1 --size L
+
+# 子Issue作成(親の番号が10だった場合)
+scripts/create_issue.sh --title "<子タイトル>" --body-file <子の本文> --priority P1 --size M --parent 10
+```
+
 ## ラベル
 
 現時点ではラベルを使わない。Status/Priority/Sizeのフィールドで管理する方針(2026-09-13時点の決定)。
@@ -51,8 +67,11 @@ scripts/create_issue.sh \
   --title "<Issueタイトル>" \
   --body-file <本文を書いた一時ファイルのパス> \
   --priority P0|P1|P2 \
-  --size XS|S|M|L|XL
+  --size XS|S|M|L|XL \
+  [--parent <親Issue番号>]
 ```
+
+`--parent` は、親Issue・子Issueに分割する場合(下記参照)のみ指定する。
 
 スクリプトが以下を自動で行う。
 
@@ -85,4 +104,3 @@ Priority: P1 / Size: M と判断 → `scripts/create_issue.sh` 実行 → Issue 
 ## 補足
 
 - 対象リポジトリ・ボードはこのプロジェクト専用に固定してある(スクリプト内のIDを参照)。ボードを作り直した場合はスクリプト冒頭のコメントに従ってIDを取り直す
-- 大きすぎる作業(Size=XL相当)は、先にサブタスクへの分割を提案してから、それぞれをIssue化する
