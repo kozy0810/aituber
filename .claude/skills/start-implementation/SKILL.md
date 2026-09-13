@@ -17,8 +17,7 @@ kozy0810/aituberでは、確定したIssueに着手する際、必ずこの手�
 2. `gh issue view <番号> --repo kozy0810/aituber --json title,body,url` でIssueの内容(実装内容・完了条件)を取得する
 3. Issueタイトルから、英語の短いkebab-caseスラッグを考える(例:「YouTube Liveのコメント取得を実装する」→ `youtube-live-chat`)
 4. `scripts/start_implementation.sh --issue <番号> --slug <スラッグ>` を実行する。これが以下を行う:
-   - mainを最新化(`git checkout main && git pull`)
-   - `issue-<番号>-<スラッグ>` ブランチを作成
+   - `origin/main`を取得し、そこから直接 `issue-<番号>-<スラッグ>` ブランチを作成(worktree環境で`main`が別の場所でチェックアウト済みでも失敗しないよう、`git checkout main`はしない)
    - Kanbanボード上の該当IssueのStatusを "In progress" に更新
 5. `docs/specs/<番号>-<スラッグ>.md` に仕様ドキュメントを作成する(フォーマットは下記)
 6. 仕様ドキュメントの内容に沿って実装を開始する
@@ -41,6 +40,8 @@ Issueの「実装内容」を、実際にどう実装するかの技術的判断
 {Issueの完了条件を転記。実装を進める中でより具体的なチェック項目に分割してよい}
 - [ ] ...
 ```
+
+実装が完了した項目は、都度チェックボックスにチェックを入れる。作成時点では全て未チェックでよいが、実装を終えてそのまま未チェックで放置しない。
 
 このドキュメントはPRマージ後も`docs/specs/`に残す(将来の設計判断を追える記録として蓄積する方針。2026-09-13決定)。
 

@@ -52,10 +52,15 @@ BRANCH="issue-${ISSUE}-${SLUG}"
 echo "Fetching issue #$ISSUE..." >&2
 gh issue view "$ISSUE" --repo "$REPO" >/dev/null
 
-echo "Updating main and creating branch $BRANCH..." >&2
-git checkout main
-git pull origin main
-git checkout -b "$BRANCH"
+echo "Fetching latest main and creating branch $BRANCH..." >&2
+# Branch straight off origin/main via fetch, rather than "git checkout main;
+# git pull" — this repo is routinely worked on from git worktrees (including
+# this skill's own agent sessions), and "main" is often already checked out
+# in another worktree, which makes "git checkout main" fail with
+# "fatal: 'main' is already used by worktree at ...". Fetching and branching
+# from origin/main works regardless of what the local checkout is on.
+git fetch origin main
+git checkout -b "$BRANCH" origin/main
 
 echo "Registering issue on project #$PROJECT_NUMBER and setting Status=In progress..." >&2
 ITEM_ID=$(gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url "$ISSUE_URL" --format json | jq -r '.id')
