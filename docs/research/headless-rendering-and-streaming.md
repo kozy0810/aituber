@@ -77,6 +77,18 @@ node-webgl の実測値(Apple M5 Max)として、**PBR・影付きのthree.jsシ
 
 レンダリング負荷が極めて軽いことを踏まえると**最安クラスのGPUで十分**で、月額¥20,000〜30,000程度に収まる見込み。
 
+### そもそもクラウドGPUを借りない選択肢がある
+
+上記はクラウドでLinuxサーバーを借りる前提の試算だが、**Apple Silicon の Mac で動かせばGPUレンタルは不要になる。**
+
+- エンコードは **VideoToolbox**(Apple Silicon搭載のハードウェアエンコーダ)が NVENC の役割を果たす
+- node-webgl は **macOS arm64 向けのプリビルトが提供される**(Linuxはインストール時コンパイルが必要)
+- AivisSpeech も macOS 版があり CPU で動作する
+
+費用は月2万円規模から電気代(約560円)まで下がる。一方で冷却・可用性・回線帯域といった別の制約が発生する。
+
+詳細な比較は `docs/deployment-options.md` を参照。
+
 ## 未検証の事項
 
 - node-webglの「AI Restriction」条項が本プロジェクトの用途に適用されるか
