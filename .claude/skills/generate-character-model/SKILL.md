@@ -19,7 +19,16 @@ description: Turn a character reference image into a rigged, textured 3D model (
 
 MeshyのリギングAPI(およびMCPの`meshy_rig`)は**人型(二足)専用**で、非人型に対応していない。`rig_type`に相当するパラメータ自体が存在しないため、**Meshy単独では四足のリギングはWeb UIでしか実行できない**。
 
-生成・テクスチャ・ダウンロードはMeshyのAPI/MCP(Proプラン以上)で自動化できるので、手動が残るのはリギング工程だけ。キャラ登録は1体1回の作業なので、現状はこの運用で足りる。
+この制約はMeshy自身のAIエージェントも認めている(四足リギングを依頼すると「現在のリギング機能は二足の人型スケルトン専用」と回答する)。
+
+**さらに Meshy 6 Lite もWeb UI限定**で、API/MCP/エージェントからは `meshy-6` と `meshy-7` しか選べない。無料でダウンロードできる唯一のモデルがAPI経由では使えないため、**API経由では無料プランで成果物を取り出せない**。
+
+| | Web UI | API / MCP / エージェント |
+|---|---|---|
+| 非人型のリギング | ○ | ✗ |
+| Meshy 6 Lite(無料DL可) | ○ | ✗ |
+
+このため、**無料プランで四足キャラクターを作る場合は全工程がWeb UIの手動操作になる**。キャラ登録は1体1回の作業なので現状はこれで足りる。Proプランを契約すれば、生成・テクスチャ・ダウンロードはAPI/MCPで自動化でき、手動が残るのはリギング工程だけになる。
 
 **将来的に全工程を自動化する場合の選択肢**: TripoのRig APIは`rig_type`で7種の生物タイプ(四足・鳥・蛇・水生など)を指定でき、**プログラムから非人型のリギングができる唯一の選択肢**。入力は3Dモデル(GLB/FBX/OBJ/STL、150MBまで)なので、「Meshyで生成 → TripoでリギングというハイブリッドでE2E自動化が成立しうる。ただしTripo側の顎ボーンの有無は未確認で、2サービスの契約が必要になる。詳細は調査記録を参照。
 
@@ -29,7 +38,32 @@ MeshyのリギングAPI(およびMCPの`meshy_rig`)は**人型(二足)専用**�
 
 ### 1. 参考画像を用意する
 
+**ここが工程全体の成否を決める。** リグが通るかどうかは画像の姿勢でほぼ決まり、後の工程では取り返せない。
+
 **1体だけが写った画像**にすること。front/side/back が1枚に並んだ三面図をそのまま入れると、被写体が並んだまま1つのメッシュになる(パンダが3頭つながったモデルができる)。
+
+#### 手持ちの画像が条件を満たさない場合は作り直す
+
+「四肢が体に密着している」「小道具が写っている」「背景が複雑」といった画像しかない場合、そのまま進めても**リギングで失敗する**。Meshyの画像生成機能で、条件を満たす参考画像を作り直すのが早い。
+
+サイドバーの「画像」→ **画像参照に元のキャラクター画像を指定**(最大5枚)してプロンプトを書くと、**見た目を保ったまま姿勢だけ変えた画像**が得られる。コストは9クレジット/枚。
+
+実際に使って有効だったプロンプトの要素:
+
+```
+A giant panda standing on all four legs in a neutral quadruped A-pose,
+viewed from a three-quarter front angle. Full body clearly visible from
+head to paws. All four legs are straight and clearly separated from the
+torso with visible empty gaps between each leg and the body. Head held
+level facing forward, mouth closed. Plain flat light gray studio
+background, completely empty. No plants, no bowl, no pot, no flowers,
+no rocks, no ground decoration, no props of any kind. Even neutral
+lighting, no deep shadows. Character reference sheet style for 3D modeling.
+```
+
+要点は「四足で立つ」「四肢と胴の間に隙間が見える」「全身が写る」「無地の背景」「小道具を名指しで否定する」。小道具は `no props` だけでは残ることがあるため、元画像に写っているもの(鉢・花・岩など)を個別に列挙して打ち消す。
+
+四足動物なら**アスペクト比は16:9**が収まりがよい。
 
 三面図なら先に切り出す:
 
