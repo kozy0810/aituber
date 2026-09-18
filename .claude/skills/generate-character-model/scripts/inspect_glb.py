@@ -67,6 +67,56 @@ def _inv_affine_translation(m):
     return [-(inv[r][0] * t[0] + inv[r][1] * t[1] + inv[r][2] * t[2]) for r in range(3)]
 
 
+def mouth_anchor(gltf, binc, pos, joint_names):
+    """口を重ねる位置(鼻先)をメッシュとボーンから導出する。
+
+    リップシンクは3Dの口を動かすのではなく、headボーンに親子付けした板を
+    重ねて表現する方針のため、その取り付け位置が要る。顔の向きは
+    frontleg/backlegボーンのどちら側が前かで判定し、headボーン近傍で
+    最も前方にある頂点を鼻先とみなす。
+
+    戻り値: (アンカー座標, バウンディングボックス内の相対位置, メッシュ最大寸法)
+    """
+    head = next((p for n, p in zip(joint_names, pos) if n.lower() == "head"), None)
+    front = [p for n, p in zip(joint_names, pos) if "frontleg" in n.lower()]
+    back = [p for n, p in zip(joint_names, pos) if "backleg" in n.lower()]
+    if head is None or not front or not back:
+        return None
+
+    # 前後の軸と向きを、脚ボーンの配置から決める
+    axis, sign, best = 2, 1, 0.0
+    for ax in range(3):
+        d = sum(v[ax] for v in front) / len(front) - sum(v[ax] for v in back) / len(back)
+        if abs(d) > abs(best):
+            axis, sign, best = ax, (1 if d > 0 else -1), d
+
+    prim = gltf["meshes"][0]["primitives"][0]
+    pa = gltf["accessors"][prim["attributes"]["POSITION"]]
+    if not pa.get("min") or not pa.get("max"):
+        return None
+    bv = gltf["bufferViews"][pa["bufferView"]]
+    off = bv.get("byteOffset", 0) + pa.get("byteOffset", 0)
+    stride = bv.get("byteStride") or 12
+    try:
+        verts = [struct.unpack_from("<3f", binc, off + i * stride)
+                 for i in range(pa["count"])]
+    except struct.error:
+        return None
+
+    mn, mx = pa["min"], pa["max"]
+    size = max(mx[i] - mn[i] for i in range(3))
+    r2 = (size * 0.25) ** 2
+    near = [v for v in verts
+            if sum((v[i] - head[i]) ** 2 for i in range(3)) <= r2]
+    if not near:
+        return None
+
+    tip = max(near, key=lambda v: v[axis] * sign)
+    rel = [(tip[i] - mn[i]) / (mx[i] - mn[i]) if mx[i] > mn[i] else 0.5
+           for i in range(3)]
+    return tip, rel, size, "XYZ"[axis], sign
+
+
 def bone_positions(gltf, binc):
     """各ボーンのバインドポーズ位置を {ノード番号: (x,y,z)} で返す"""
     if not binc or not gltf.get("skins"):
@@ -231,6 +281,31 @@ def main():
         print("    → ビセーム方式のリップシンクが使える可能性がある")
     elif morph_count == 0:
         print("    ✗ なし(事前調査どおり、自動生成では出ない)")
+
+    # --- 口を重ねる位置 ---
+    print(f"\n■ 口のアンカー(リップシンク用の板を取り付ける位置)")
+    anchor = None
+    if joint_ids and pos and binc:
+        names = [nodes[j].get("name", str(j)) for j in joint_ids]
+        plist = [pos.get(j) for j in joint_ids]
+        if all(p is not None for p in plist):
+            anchor = mouth_anchor(gltf, binc, plist, names)
+    if anchor:
+        tip, rel, size, axis, sign = anchor
+        print(f"    顔の向き   : {'+' if sign > 0 else '-'}{axis} (脚ボーンの配置から判定)")
+        print(f"    アンカー座標: ({tip[0]:.4f}, {tip[1]:.4f}, {tip[2]:.4f})")
+        print(f"    BBox内の相対位置: X={rel[0]:.1%} Y={rel[1]:.1%} Z={rel[2]:.1%}")
+        print(f"    メッシュ最大寸法: {size:.4f}")
+        print(f"    → 板の寸法目安(寸法比): 6%={size*0.06:.4f} 8%={size*0.08:.4f}")
+        if abs(rel[0] - 0.5) < 0.05:
+            print(f"    ✓ Xがほぼ50%。正中線上にあり妥当な鼻先とみなせる")
+        else:
+            print(f"    ⚠ Xが50%から外れている。左右非対称な形状か、導出が外れた可能性")
+        print("    ※ 寸法は必ずメッシュ寸法比で指定する。モデルは極端に小さい")
+        print("      スケール(この例で最大0.0167)で書き出されることがあり、")
+        print("      絶対値で指定すると別キャラで破綻する")
+    else:
+        print("    導出不可(head / frontleg / backleg ボーンが揃っていない)")
 
     # --- アニメーション ---
     if anims:
